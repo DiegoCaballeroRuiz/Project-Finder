@@ -17,9 +17,7 @@ Now try running pf or pf help and follow the instructions!
 - Remove old or outdated projects from the database
 
 The following video is a short demonstration of pf alongside tmux popups
-<video width="320" height="240" controls>
-  <source src="./assets/Pf-demonstration.mp4" type="video/mp4">
-</video>
+![](./assets/Pf-demonstration.mp4)
 
 ## Important notes
 - pf has no dependencies outside fzf and tmux
