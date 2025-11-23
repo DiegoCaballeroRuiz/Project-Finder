@@ -16,9 +16,6 @@ Now try running pf or pf help and follow the instructions!
 - Create custom and persistent tmux sessions
 - Remove old or outdated projects from the database
 
-The following video is a short demonstration of pf alongside tmux popups
-![](./assets/Pf-demonstration.mp4)
-
 ## Important notes
 - pf has no dependencies outside fzf and tmux
 - I recommend using pf alongside tmux popups like so:
