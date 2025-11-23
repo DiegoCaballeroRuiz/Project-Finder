@@ -1,0 +1,97 @@
+#!/bin/env bash
+
+#################
+### VARIABLES ###
+#################
+
+# This is used for relative paths
+CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# These can be changed based on personal preference
+PROJECTS_DATABASE=$CWD/projects_file # File containing the project database
+PROJECT_ADD_BASE_DIR=$HOME # File where pf will look for directories when using pf add
+
+#################
+# FUNCTIONALITY #
+#################
+
+function search() {
+  [[ ! -s "$PROJECTS_DATABASE" ]] && echo "No projects stored! Try adding some with pf add or read pf help" && return
+
+  CHOICE=$(fzf --prompt="Choose a project: " < $PROJECTS_DATABASE)
+  [[ ! $CHOICE ]] && return
+
+  DIR=$(echo $CHOICE | cut -d @ -f 2)
+  SESSION=$(echo $CHOICE | cut -d @ -f 1)
+
+  [[ ! $(tmux has-session -t "$SESSION" 2>/dev/null) ]] && tmux new-session -d -s "$SESSION" -c "$DIR"
+  [[ -n "$TMUX" ]] && tmux switch-client -t "$SESSION" || tmux attach-session -t "$SESSION"
+}
+
+function add() {
+  DIR=$1
+  [[ $DIR ]] && DIR="$(pwd)/$DIR" || \
+    {
+      DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
+      DIR="$PROJECT_ADD_BASE_DIR$DIR"
+      [[ ! $DIR ]] && return
+    }
+
+  [[ $2 ]] && SESSION=$2 || \
+    {
+      echo "Choose session name for the project: " 
+      read SESSION
+    }
+
+  [[ ! $SESSION ]] && echo "Session name is empty. Aborting now" && return
+  [[ $SESSION == "home" || $SESSION == $USER ]] && echo "Naming a project like home or user directories is not allowed. Aborting now" && return
+
+  echo $SESSION@$DIR >> $PROJECTS_DATABASE
+  echo "$SESSION added to projects"
+}
+
+function remove() {
+  PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE) && [[ ! $PATTERN ]] && return;
+  
+  SESSION=$(echo $PATTERN | cut -d @ -f 1)
+
+  sed -i "/${SESSION}/d" $PROJECTS_DATABASE
+
+  echo "$SESSION removed from projects"
+}
+
+function printHelpMessage() {
+  echo "Project-Finder (pf) is a tool to reduce friction with tmux sessions via fzf and a plain text project database"
+  echo
+  echo "Stored projects are formatted like so: <projectName>@<projectDir>"
+  echo
+  echo "FLAGS:"
+  echo "    pf add (projectDirectory) (projectName):"
+  echo "      fzf from \$PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name"
+  echo "      it is also possible to manually set one or both parameters"
+  echo 
+  echo "    pf remove:"
+  echo "      fuzilly find a project in the current database to permanently remove it"
+  echo
+  echo "    pf (find):"
+  echo "      'find' is not mandatory. fuzilly find a project to connect to using tmux sessions"
+  echo
+  echo "    pf help:"
+  echo "      print this message"
+}
+
+function usage() {
+  echo $1 is not a valid pf command
+  echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf help"
+}
+
+##################
+### USER INPUT ###
+##################
+
+[[ ! $1 || "${1},," == "find" ]] && search && exit 0
+[[ "${1,,}" == "add" ]] && add $2 $3 && exit 0
+[[ "${1,,}" == "remove" ]] && remove && exit 0
+[[ "${1,,}" == "help" ]] && printHelpMessage && exit 0
+
+usage $1; exit 0
