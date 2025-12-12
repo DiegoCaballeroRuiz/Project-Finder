@@ -16,7 +16,7 @@ PROJECT_ADD_BASE_DIR=$HOME # File where pf will look for directories when using 
 #################
 
 function search() {
-  [[ ! -s "$PROJECTS_DATABASE" ]] && echo "No projects stored! Try adding some with pf add or read pf help" && return
+  [[ ! -s "$PROJECTS_DATABASE" ]] && { echo "No projects stored! Try adding some with pf add or read pf help"; return; }
 
   CHOICE=$(fzf --prompt="Choose a project: " < $PROJECTS_DATABASE)
   [[ ! $CHOICE ]] && return
@@ -29,11 +29,12 @@ function search() {
 }
 
 function add() {
-  [[ $1 ]] && DIR="$(pwd)/$1" || \
+  [[ $1 ]] && DIR="$(realpath  $1)" || \
     {
       DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
       [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
     }
+  [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; return; }
 
   [[ $2 ]] && SESSION=$2 || \
     {
@@ -41,7 +42,7 @@ function add() {
       read SESSION
     }
 
-  [[ ! $SESSION ]] && echo "Session name is empty. Aborting now" && return
+  [[ ! $SESSION ]] && { echo "Session name is empty. Aborting now"; return; }
   SESSION=$(echo $SESSION | tr . _)
 
   echo $SESSION@$DIR >> $PROJECTS_DATABASE
@@ -52,6 +53,14 @@ function remove() {
   PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE) && [[ ! $PATTERN ]] && return;
   sed -i "\#$PATTERN#d" $PROJECTS_DATABASE
   echo "$(echo $PATTERN | cut -d @ -f 1) removed from projects"
+}
+
+function auto() {
+  SESSION=$(basename $PWD | tr . _)
+  add $PWD $SESSION
+
+  [[ ! $(tmux has-session -t "$SESSION" 2>/dev/null) ]] && tmux new-session -d -s "$SESSION" -c "$PWD"
+  [[ -n "$TMUX" ]] && tmux switch-client -t "$SESSION" || tmux attach-session -t "$SESSION"
 }
 
 function printHelpMessage() {
