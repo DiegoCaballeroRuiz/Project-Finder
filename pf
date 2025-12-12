@@ -29,22 +29,20 @@ function search() {
 }
 
 function add() {
-  DIR=$1
-  [[ $DIR ]] && DIR="$(pwd)/$DIR" || \
+  [[ $1 ]] && DIR="$(pwd)/$1" || \
     {
       DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
-      DIR="$PROJECT_ADD_BASE_DIR$DIR"
-      [[ ! $DIR ]] && return
+      [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
     }
 
   [[ $2 ]] && SESSION=$2 || \
     {
-      echo "Choose session name for the project: " 
+      echo "Choose session name for the project: "
       read SESSION
     }
 
   [[ ! $SESSION ]] && echo "Session name is empty. Aborting now" && return
-  [[ $SESSION == "home" || $SESSION == $USER ]] && echo "Naming a project like home or user directories is not allowed. Aborting now" && return
+  SESSION=$(echo $SESSION | tr . _)
 
   echo $SESSION@$DIR >> $PROJECTS_DATABASE
   echo "$SESSION added to projects"
@@ -52,36 +50,32 @@ function add() {
 
 function remove() {
   PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE) && [[ ! $PATTERN ]] && return;
-  
-  SESSION=$(echo $PATTERN | cut -d @ -f 1)
-
-  sed -i "/${SESSION}/d" $PROJECTS_DATABASE
-
-  echo "$SESSION removed from projects"
+  sed -i "\#$PATTERN#d" $PROJECTS_DATABASE
+  echo "$(echo $PATTERN | cut -d @ -f 1) removed from projects"
 }
 
 function printHelpMessage() {
-  echo "Project-Finder (pf) is a tool to reduce friction with tmux sessions via fzf and a plain text project database"
-  echo
-  echo "Stored projects are formatted like so: <projectName>@<projectDir>"
-  echo
-  echo "FLAGS:"
-  echo "    pf add (projectDirectory) (projectName):"
-  echo "      fzf from \$PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name"
-  echo "      it is also possible to manually set one or both parameters"
-  echo 
-  echo "    pf remove:"
-  echo "      fuzilly find a project in the current database to permanently remove it"
-  echo
-  echo "    pf (find):"
-  echo "      'find' is not mandatory. fuzilly find a project to connect to using tmux sessions"
-  echo
-  echo "    pf help:"
-  echo "      print this message"
+cat <<- "EOF"
+Project-Finder (pf) is a tool to reduce friction with tmux sessions via fzf and a plain text project database. Stored projects are formatted like so: <projectName>@<projectDir>
+
+FLAGS:
+   pf add (projectDirectory) (projectName):
+     fzf from $PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name
+     it is also possible to manually set the directory or both parameters
+
+   pf remove:
+     fuzilly find a project in the current database to permanently remove it
+
+   pf (find):
+     'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
+
+   pf help:
+     print this message
+EOF
 }
 
 function usage() {
-  echo $1 is not a valid pf command
+  echo $1 is not a valid pf subcommand
   echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf help"
 }
 
@@ -89,9 +83,21 @@ function usage() {
 ### USER INPUT ###
 ##################
 
-[[ ! $1 || "${1},," == "find" ]] && search && exit 0
-[[ "${1,,}" == "add" ]] && add $2 $3 && exit 0
-[[ "${1,,}" == "remove" ]] && remove && exit 0
-[[ "${1,,}" == "help" ]] && printHelpMessage && exit 0
-
-usage $1; exit 0
+CMD="${1,,}"
+case "$CMD" in
+  ""|"find")
+    search
+    ;;
+  "add")
+    add $2 $3
+    ;;
+  "remove")
+    remove
+    ;;
+  "help"|"-h"|"--help")
+    printHelpMessage 
+    ;;
+  *)
+    usage $1
+    ;;
+esac
