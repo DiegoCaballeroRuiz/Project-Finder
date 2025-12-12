@@ -75,6 +75,9 @@ FLAGS:
    pf remove:
      fuzilly find a project in the current database to permanently remove it
 
+   pf auto:
+     Automatically add the current working directory to the projects folder, with its base name as the session name. Attach to the new project afterwards
+
    pf (find):
      'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
 
@@ -85,7 +88,7 @@ EOF
 
 function usage() {
   echo $1 is not a valid pf subcommand
-  echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf help"
+  echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf auto, pf help"
 }
 
 ##################
@@ -102,6 +105,9 @@ case "$CMD" in
     ;;
   "remove")
     remove
+    ;;
+  "auto")
+    auto
     ;;
   "help"|"-h"|"--help")
     printHelpMessage 
