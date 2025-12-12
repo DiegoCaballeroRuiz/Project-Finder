@@ -1,5 +1,5 @@
 # Project-Finder (pf)
-pf is a small shell script that reduces friction with tmux sessions using fzf over a plain text project database
+pf is a bash script that reduces friction with tmux sessions using fzf over a plain text project database
 
 ## Instalation
 Grab the pf file and add the route to its parent directory to your $PATH variable in your shell's rc file, the following is an example for .bashrc:
