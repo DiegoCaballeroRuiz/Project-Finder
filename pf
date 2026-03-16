@@ -1,8 +1,8 @@
 #!/bin/env bash
 
-#################
-### VARIABLES ###
-#################
+#############
+# VARIABLES #
+#############
 
 # This is used for relative paths
 CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,17 +15,20 @@ PROJECT_ADD_BASE_DIR=$HOME # File where pf will look for directories when using 
 # FUNCTIONALITY #
 #################
 
+function tmuxConnect() { #$1 is session name $2 is directory
+  [[ ! $(tmux has-session -t "$1" 2>/dev/null) ]] && tmux new-session -d -s "$1" -c "$2"
+  [[ -n "$TMUX" ]] && tmux switch-client -t "$1" || tmux attach-session -t "$1"
+}
+
 function search() {
   [[ ! -s "$PROJECTS_DATABASE" ]] && { echo "No projects stored! Try adding some with pf add or read pf help"; return; }
 
-  CHOICE=$(fzf --prompt="Choose a project: " < $PROJECTS_DATABASE)
+  CHOICE=$(fzf --prompt="Choose a project: " < $PROJECTS_DATABASE) 
   [[ ! $CHOICE ]] && return
 
   DIR=$(echo $CHOICE | cut -d @ -f 2)
   SESSION=$(echo $CHOICE | cut -d @ -f 1)
-
-  [[ ! $(tmux has-session -t "$SESSION" 2>/dev/null) ]] && tmux new-session -d -s "$SESSION" -c "$DIR"
-  [[ -n "$TMUX" ]] && tmux switch-client -t "$SESSION" || tmux attach-session -t "$SESSION"
+  tmuxConnect $SESSION $DIR
 }
 
 function add() {
@@ -36,13 +39,9 @@ function add() {
     }
   [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; return; }
 
-  [[ $2 ]] && SESSION=$2 || \
-    {
-      echo "Choose session name for the project: "
-      read SESSION
-    }
-
+  [[ $2 ]] && SESSION=$2 || { echo "Choose session name for the project: "; read SESSION; }
   [[ ! $SESSION ]] && { echo "Session name is empty. Aborting now"; return; }
+
   SESSION=$(echo $SESSION | tr . _)
 
   echo $SESSION@$DIR >> $PROJECTS_DATABASE
@@ -50,17 +49,17 @@ function add() {
 }
 
 function remove() {
-  PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE) && [[ ! $PATTERN ]] && return;
+  PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE)
+  [[ ! $PATTERN ]] && return;
+
   sed -i "\#$PATTERN#d" $PROJECTS_DATABASE
   echo "$(echo $PATTERN | cut -d @ -f 1) removed from projects"
 }
 
 function auto() {
-  SESSION=$(basename $PWD | tr . _)
+  SESSION=$(basename $PWD)
   add $PWD $SESSION
-
-  [[ ! $(tmux has-session -t "$SESSION" 2>/dev/null) ]] && tmux new-session -d -s "$SESSION" -c "$PWD"
-  [[ -n "$TMUX" ]] && tmux switch-client -t "$SESSION" || tmux attach-session -t "$SESSION"
+  tmuxConnect $SESSION $PWD
 }
 
 function printHelpMessage() {
@@ -68,21 +67,21 @@ cat <<- "EOF"
 Project-Finder (pf) is a tool to reduce friction with tmux sessions via fzf and a plain text project database. Stored projects are formatted like so: <projectName>@<projectDir>
 
 FLAGS:
-   pf add (projectDirectory) (projectName):
-     fzf from $PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name
-     it is also possible to manually set the directory or both parameters
+  pf add (projectDirectory) (projectName):
+    fzf from $PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name
+    it is also possible to manually set the directory or both parameters
 
-   pf remove:
-     fuzilly find a project in the current database to permanently remove it
+  pf remove:
+    fuzilly find a project in the current database to permanently remove it
 
-   pf auto:
-     Automatically add the current working directory to the projects folder, with its base name as the session name. Attach to the new project afterwards
+  pf auto:
+    Automatically add the current working directory to the projects folder, with its base name as the session name. Attach to the new project afterwards
 
-   pf (find):
-     'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
+  pf (find):
+    'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
 
-   pf help:
-     print this message
+  pf help:
+    print this message
 EOF
 }
 
@@ -91,9 +90,9 @@ function usage() {
   echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf auto, pf help"
 }
 
-##################
-### USER INPUT ###
-##################
+##############
+# USER INPUT #
+##############
 
 CMD="${1,,}"
 case "$CMD" in
