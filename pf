@@ -20,7 +20,7 @@ function connect() { # DIR, SESSION
     [[ -n "$TMUX" ]] && tmux switch-client -t "$2" || tmux attach-session -t "$2"
 }
 
-function set_dir() {
+function pick_or_resolve_dir() {
     [[ $1 ]] && DIR="$(realpath  $1)" || \
         {
             DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
@@ -42,7 +42,7 @@ function search() {
 }
 
 function add() {
-    set_dir $1
+    pick_or_resolve_dir $1
 
     [[ $2 ]] && SESSION=$2 || \
         {
@@ -66,14 +66,14 @@ function remove() {
 }
 
 function auto() {
-    set_dir $1
+    pick_or_resolve_dir $1
     SESSION=$(basename $DIR | tr . _)
     add $DIR $SESSION
     connect $DIR $SESSION
 }
 
 function temp() {
-    set_dir $1
+    pick_or_resolve_dir $1
     SESSION=$(basename $DIR | tr . _)
     connect $PWD $SESSION
 }
@@ -82,27 +82,24 @@ function printHelpMessage() {
     cat <<- "EOF"
 Project-Finder (pf) is a tool to reduce friction with tmux sessions via fzf and a plain text project database. Stored projects are formatted like so: <projectName>@<projectDir>
 
-FLAGS:
+SUBCOMMANDS:
   pf add (projectDirectory) (projectName):
-    fzf from $PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name
-    it is also possible to manually set the directory or both parameters
+    Add a project to the database. Missing projectDirectory triggers an fzf search under $PROJECT_ADD_BASE_DIR. Missing projectName prompts for manual entry. Name is used as the tmux session name on connect.
 
   pf remove (projectName):
-    fuzilly find or specify a project name to permanently remove it from the database
-
-  pf auto (projectDirectory):
-    fzf from $PROJECT_ADD_BASE_DIR to search a project dir. Automatically add it to the projects database, with its base name as the session name. Attach to the new project afterwards
-    it is also possible to manually set the directory
-
-  pf temp (projectDirectory):
-    fzf from $PROJECT_ADD_BASE_DIR to search a project dir. Automatically attach to it with its base name as the session name, WITHOUT adding it to the projects database
-    it is also possible to manually set the directory
+    Remove a project from the database. Missing projectName triggers an fzf search over stored projects.
 
   pf (find):
-    'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
+   "find" is optional. Fuzzy search stored projects and connect to the matching session.
+
+  pf auto (projectDirectory):
+    Add a project and connect to it in one step. Missing projectDirectory triggers an fzf search under $PROJECT_ADD_BASE_DIR. Session name is the directory's base name.
+
+  pf temp (projectDirectory):
+    Start or attach a tmux session for a directory without saving it to the database. Missing projectDirectory triggers an fzf search under $PROJECT_ADD_BASE_DIR. Session name is the directory's base name.
 
   pf help:
-    print this message
+    Print this message.
 EOF
 }
 
