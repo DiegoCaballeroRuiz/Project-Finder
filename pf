@@ -11,9 +11,9 @@ PF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECTS_DATABASE=$PF_DIR/projects_file # File containing the project database
 PROJECT_ADD_BASE_DIR=$PWD # File where pf will look for directories when using pf add
 
-#################
-# FUNCTIONALITY #
-#################
+######################
+# AUXILIAR FUNCTIONS #
+######################
 
 function connect() { # DIR, SESSION
     [[ ! $(tmux has-session -t "$2" 2>/dev/null) ]] && tmux new-session -d -s "$2" -c "$1"
@@ -28,6 +28,10 @@ function pick_or_resolve_dir() {
         }
     [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; exit 1; }
 }
+
+#################
+# FUNCTIONALITY #
+#################
 
 function search() {
     [[ ! -s "$PROJECTS_DATABASE" ]] && { echo "No projects stored! Try adding some with pf add or read pf help"; return; }
