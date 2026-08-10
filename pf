@@ -5,73 +5,77 @@
 #############
 
 # This is used for relative paths
-CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # These can be changed based on personal preference
-PROJECTS_DATABASE=$CWD/projects_file # File containing the project database
-PROJECT_ADD_BASE_DIR=$HOME # File where pf will look for directories when using pf add
+PROJECTS_DATABASE=$PF_DIR/projects_file # File containing the project database
+PROJECT_ADD_BASE_DIR=$PWD # File where pf will look for directories when using pf add
 
 #################
 # FUNCTIONALITY #
 #################
 
 function connect() { # DIR, SESSION
-  [[ ! $(tmux has-session -t "$2" 2>/dev/null) ]] && tmux new-session -d -s "$2" -c "$1"
-  [[ -n "$TMUX" ]] && tmux switch-client -t "$2" || tmux attach-session -t "$2"
+    [[ ! $(tmux has-session -t "$2" 2>/dev/null) ]] && tmux new-session -d -s "$2" -c "$1"
+    [[ -n "$TMUX" ]] && tmux switch-client -t "$2" || tmux attach-session -t "$2"
 }
 
 function search() {
-  [[ ! -s "$PROJECTS_DATABASE" ]] && { echo "No projects stored! Try adding some with pf add or read pf help"; return; }
+    [[ ! -s "$PROJECTS_DATABASE" ]] && { echo "No projects stored! Try adding some with pf add or read pf help"; return; }
 
-  CHOICE=$(fzf --prompt="Choose a project: " < $PROJECTS_DATABASE)
-  [[ ! $CHOICE ]] && return
+    CHOICE=$(fzf --prompt="Choose a project: " < $PROJECTS_DATABASE)
+    [[ ! $CHOICE ]] && return
 
-  DIR=$(echo $CHOICE | cut -d @ -f 2)
-  SESSION=$(echo $CHOICE | cut -d @ -f 1)
+    DIR=$(echo $CHOICE | cut -d @ -f 2)
+    SESSION=$(echo $CHOICE | cut -d @ -f 1)
 
-  connect $DIR $SESSION
+    connect $DIR $SESSION
 }
 
 function add() {
-  [[ $1 ]] && DIR="$(realpath  $1)" || \
-    {
-      DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
-      [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
-    }
-  [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; return; }
+    [[ $1 ]] && DIR="$(realpath  $1)" || \
+        {
+            DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
+            [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
+        }
+    [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; return; }
 
-  [[ $2 ]] && SESSION=$2 || \
-    {
-      echo "Choose session name for the project: "
-      read SESSION
-    }
+    [[ $2 ]] && SESSION=$2 || \
+        {
+            echo "Choose session name for the project: "
+            read SESSION
+        }
 
-  [[ ! $SESSION ]] && { echo "Session name is empty. Aborting now"; return; }
-  SESSION=$(echo $SESSION | tr . _)
+    [[ ! $SESSION ]] && { echo "Session name is empty. Aborting now"; return; }
+    SESSION=$(echo $SESSION | tr . _)
 
-  echo $SESSION@$DIR >> $PROJECTS_DATABASE
-  echo "$SESSION added to projects"
+    echo $SESSION@$DIR >> $PROJECTS_DATABASE
+    echo "$SESSION added to projects"
 }
 
 function remove() {
-  PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE) && [[ ! $PATTERN ]] && return;
-  sed -i "\#$PATTERN#d" $PROJECTS_DATABASE
-  echo "$(echo $PATTERN | cut -d @ -f 1) removed from projects"
+    [[ $1 ]] && PATTERN=$1 || \
+        PATTERN=$(fzf --prompt="Choose a project to delete: " < $PROJECTS_DATABASE) && [[ ! $PATTERN ]] && return;
+
+    sed -i "\#$PATTERN#d" $PROJECTS_DATABASE
+    echo "$(echo $PATTERN | cut -d @ -f 1) removed from projects"
 }
 
 function auto() {
-  SESSION=$(basename $PWD | tr . _)
-  add $PWD $SESSION
-  connect $PWD $SESSION
+    [[ $1 ]] && DIR=$1 || DIR=$PWD
+    SESSION=$(basename $DIR | tr . _)
+    add $DIR $SESSION
+    connect $DIR $SESSION
 }
 
 function temp() {
-  SESSION=$(basename $PWD | tr . _)
-  connect $PWD $SESSION
+    [[ $1 ]] && DIR=$1 || DIR=$PWD
+    SESSION=$(basename $DIR | tr . _)
+    connect $PWD $SESSION
 }
 
 function printHelpMessage() {
-cat <<- "EOF"
+    cat <<- "EOF"
 Project-Finder (pf) is a tool to reduce friction with tmux sessions via fzf and a plain text project database. Stored projects are formatted like so: <projectName>@<projectDir>
 
 FLAGS:
@@ -79,14 +83,14 @@ FLAGS:
     fzf from $PROJECT_ADD_BASE_DIR to search a project dir and add it to the database. After that, choose the project's name, it will be used as the tmux session name
     it is also possible to manually set the directory or both parameters
 
-  pf remove:
-    fuzilly find a project in the current database to permanently remove it
+  pf remove (projectName):
+    fuzilly find or specify a project name to permanently remove it from the database
 
-  pf auto:
-    Automatically add the current working directory to the projects folder, with its base name as the session name. Attach to the new project afterwards
+  pf auto (projectDirectory):
+    Automatically add the <projectDit> or the current working directory to the projects database, with its base name as the session name. Attach to the new project afterwards
 
-  pf temp:
-    Automatically attach to a session in the current working directory, with its base name as the session name, without adding it to the projects folder
+  pf temp (projectDirectory):
+    Automatically attach to a session in the <projectDir> or the current working directory, with its base name as the session name, without adding it to the projects database
 
   pf (find):
     'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
@@ -97,8 +101,8 @@ EOF
 }
 
 function usage() {
-  echo $1 is not a valid pf subcommand
-  echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf auto, pf temp, pf help"
+    echo $1 is not a valid pf subcommand
+    echo "Usage: pf (find), pf add (projectDirectory) (projectName), pf remove, pf auto, pf temp, pf help"
 }
 
 ##############
@@ -107,11 +111,11 @@ function usage() {
 
 CMD="${1,,}"
 case "$CMD" in
-  ""|"find") search ;;
-  "add") add $2 $3 ;;
-  "remove") remove ;;
-  "auto") auto ;;
-  "temp") temp ;;
-  "help"|"-h"|"--help") printHelpMessage ;;
-  *) usage $1 ;;
+    ""|"find") search ;;
+    "add") add $2 $3 ;;
+    "remove") remove $2 ;;
+    "auto") auto $2 ;;
+    "temp") temp $2 ;;
+    "help"|"-h"|"--help") printHelpMessage ;;
+    *) usage $1 ;;
 esac
