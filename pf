@@ -20,6 +20,15 @@ function connect() { # DIR, SESSION
     [[ -n "$TMUX" ]] && tmux switch-client -t "$2" || tmux attach-session -t "$2"
 }
 
+function set_dir() {
+    [[ $1 ]] && DIR="$(realpath  $1)" || \
+        {
+            DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
+            [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
+        }
+    [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; exit 1; }
+}
+
 function search() {
     [[ ! -s "$PROJECTS_DATABASE" ]] && { echo "No projects stored! Try adding some with pf add or read pf help"; return; }
 
@@ -33,12 +42,7 @@ function search() {
 }
 
 function add() {
-    [[ $1 ]] && DIR="$(realpath  $1)" || \
-        {
-            DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
-            [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
-        }
-    [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; return; }
+    set_dir $1
 
     [[ $2 ]] && SESSION=$2 || \
         {
@@ -62,14 +66,14 @@ function remove() {
 }
 
 function auto() {
-    [[ $1 ]] && DIR=$1 || DIR=$PWD
+    set_dir $1
     SESSION=$(basename $DIR | tr . _)
     add $DIR $SESSION
     connect $DIR $SESSION
 }
 
 function temp() {
-    [[ $1 ]] && DIR=$1 || DIR=$PWD
+    set_dir $1
     SESSION=$(basename $DIR | tr . _)
     connect $PWD $SESSION
 }
@@ -87,10 +91,12 @@ FLAGS:
     fuzilly find or specify a project name to permanently remove it from the database
 
   pf auto (projectDirectory):
-    Automatically add the <projectDit> or the current working directory to the projects database, with its base name as the session name. Attach to the new project afterwards
+    fzf from $PROJECT_ADD_BASE_DIR to search a project dir. Automatically add it to the projects database, with its base name as the session name. Attach to the new project afterwards
+    it is also possible to manually set the directory
 
   pf temp (projectDirectory):
-    Automatically attach to a session in the <projectDir> or the current working directory, with its base name as the session name, without adding it to the projects database
+    fzf from $PROJECT_ADD_BASE_DIR to search a project dir. Automatically attach to it with its base name as the session name, WITHOUT adding it to the projects database
+    it is also possible to manually set the directory
 
   pf (find):
     'find' is not mandatory. fuzilly find a project to connect to using tmux sessions
