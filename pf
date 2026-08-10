@@ -24,7 +24,7 @@ function set_dir() {
     [[ $1 ]] && DIR="$(realpath  $1)" || \
         {
             DIR=$(find $PROJECT_ADD_BASE_DIR -type d -print | sed "s|^$PROJECT_ADD_BASE_DIR||" | fzf --prompt="Choose project directory: ") 
-            [[ ! $DIR ]] && return || DIR="$PROJECT_ADD_BASE_DIR$DIR" 
+            [[ $DIR ]] && DIR="$PROJECT_ADD_BASE_DIR$DIR" || exit 0
         }
     [[ -d "$DIR" ]] || { echo "$DIR is not a directory"; exit 1; }
 }
